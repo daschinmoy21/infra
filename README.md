@@ -13,12 +13,12 @@ graph TD
         User((User))
     end
 
-    subgraph VPC ["GCP VPC: alchemyst-vpc"]
+    subgraph VPC ["GCP VPC: red-vpc"]
         subgraph Subnet ["Private Subnet: 10.0.1.0/24"]
             
             subgraph GatewayVM ["Caller-Gateway VM (Public IP)"]
                 direction TB
-                API["HTTP API (:8080)"]
+                API["HTTP API (:8000)"]
                 TS["Caller-Worker (TS)"]
                 Hub["iii-engine (RPC Hub)"]
                 
@@ -37,10 +37,12 @@ graph TD
             Hub -- "Private RPC (49134)" --> Py
         end
 
-        NAT["Cloud NAT"] -. "Outbound Only" .-> Subnet
+        NAT["Cloud NAT"]
+        Subnet -. "Outbound Only" .-> NAT
     end
 
     User -- "JSON Request" --> API
+    NAT -. "SNAT" .-> Public
 ```
 
 ### Prerequisites
