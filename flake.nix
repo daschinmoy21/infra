@@ -27,6 +27,7 @@
 
           # IaC
           terraform
+          terraform-ls
 
           # Python worker (SLM inference) — deps managed by uv
           uv
