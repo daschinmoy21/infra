@@ -3,6 +3,8 @@ from typing import Any, Dict, List
 
 from iii import InitOptions, Logger, register_worker
 from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+torch.set_num_threads(1)
 
 iii = register_worker(
     os.environ.get("III_URL", "ws://localhost:49134"),
