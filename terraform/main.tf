@@ -166,7 +166,7 @@ resource "aws_instance" "caller" {
   user_data = templatefile(
     "${path.module}/../scripts/deploy-caller.sh",
     {
-      inference_ip = "10.0.2.10"
+      inference_ip = "10.0.1.10"
       repo_url     = var.repo_url
     }
   )
@@ -177,8 +177,8 @@ resource "aws_instance" "caller" {
 resource "aws_instance" "inference" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
-  subnet_id     = aws_subnet.private.id
-  private_ip    = "10.0.2.10"
+  subnet_id     = aws_subnet.public.id
+  private_ip    = "10.0.1.10"
 
   vpc_security_group_ids = [
     aws_security_group.common.id,
@@ -204,4 +204,8 @@ resource "aws_instance" "inference" {
 
 output "gateway_public_ip" {
   value = aws_instance.caller.public_ip
+}
+
+output "inference_public_ip" {
+  value = aws_instance.inference.public_ip
 }
