@@ -70,7 +70,7 @@ tokenizer.chat_template = """{{ bos_token }}
 def run_inference_handler(
     payload: Dict[str, str | List[Dict[str, Any]]],
 ) -> Dict[str, Any]:
-    # prompt = "Explain quantum entanglement in simple terms."
+    print("Received inference request:", payload, flush=True)
     messages = payload.get("messages", [])
 
     text = tokenizer.apply_chat_template(
