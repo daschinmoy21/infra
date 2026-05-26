@@ -11,5 +11,9 @@
   },
   "dependencies": {
     "iii-sdk": "^0.13.0"
+  },
+  "scripts": {
+    "dev": "bun run index.ts",
+    "start": "bun run index.ts"
   }
 }

@@ -85,7 +85,7 @@ def run_inference_handler(
 
     print(result)
 
-    return result
+    return {"response": result}
 
 
 iii.register_function("inference::run_inference", run_inference_handler)

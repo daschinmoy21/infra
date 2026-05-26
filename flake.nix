@@ -30,7 +30,7 @@
           glibc
 
           # Cloud & Automation Core
-          google-cloud-sdk
+          awscli2
           terraform
           terraform-ls
 

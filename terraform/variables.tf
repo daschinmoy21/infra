@@ -1,28 +1,17 @@
-variable "project_id" {
-  description = "GCP project ID"
-  type        = string
-}
-
 variable "region" {
-  description = "GCP region"
+  description = "AWS region"
   type        = string
-  default     = "asia-south-1-a"
+  default     = "ap-south-1"
 }
 
-variable "zone" {
-  description = "GCP zone"
+variable "instance_type" {
+  description = "EC2 instance type"
   type        = string
-  default     = "asia-south-1-a"
-}
-
-variable "machine_type" {
-  description = "VM machine type"
-  type        = string
-  default     = "e2-medium"
+  default     = "t2.micro"
 }
 
 variable "my_ip" {
-  description = "Your public IP for SSH access (will be /32 in firewall)"
+  description = "Your public IP for SSH access (will be /32 in SG)"
   type        = string
 }
 
@@ -31,5 +20,3 @@ variable "repo_url" {
   type        = string
   default     = "https://github.com/Alchemyst-ai/hiring.git"
 }
-
-

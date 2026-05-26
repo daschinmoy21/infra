@@ -1,144 +1,186 @@
 terraform {
   required_providers {
-    google = {
-      source = "hashicorp/google"
-      version = "6.8.0"
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
     }
   }
 }
 
-provider "google" {
-  project = var.project_id
-  region  = var.region
-  zone    = var.zone
+provider "aws" {
+  region = var.region
 }
 
-resource "google_compute_network" "vpc_network" {
-  name = "red-vpc"
-  auto_create_subnetworks = "false"
+# --- Networking ---
+
+resource "aws_vpc" "main" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+  tags = { Name = "red-vpc" }
 }
 
-resource "google_compute_subnetwork" "private" {
-  name          = "worker-subnet"
-  network       = google_compute_network.vpc_network.id
-  region        = var.region
-  ip_cidr_range = "10.0.1.0/24"
-
-  private_ip_google_access = true
+resource "aws_subnet" "public" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.1.0/24"
+  map_public_ip_on_launch = true
+  availability_zone       = "${var.region}a"
+  tags = { Name = "public-subnet" }
 }
 
-#NAT 
-resource "google_compute_router" "nat_router" {
-   name = "nat_router"
-   network = "${google_compute_network.vpc_network.id}"
-   region = var.region
+resource "aws_subnet" "private" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.2.0/24"
+  availability_zone = "${var.region}a"
+  tags = { Name = "private-subnet" }
 }
 
-resource "google_compute_router_nat" "nat"{
-name = "nat_router"
-router = google_compute_router.nat_router.name
-region = var.region
-  nat_ip_allocate_option             = "AUTO_ONLY"
-  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.main.id
 }
 
-resource "google_compute_firewall" "no_ingress" {
-   name = "no_ingress"
-   network = google_compute_network.vpc_network.id
-
-   direction = "INGRESS" 
-   priority = 65534
-   deny {
-       protocol = "all"
-   }
-
-  source_ranges = ["0.0.0.0/0"]
-}
-
-resource "google_compute_firewall" "allow_interal" {
-   name = "allow_interal"
-   network = google_compute_network.vpc_network.id 
-
-   allow {
-       protocol = "tcp"
-       ports = ["1-65535"]
-   }
-
-   allow {
-       protocol = "udp"
-       ports = ["1-65535"]
-   }
-
-  source_ranges = ["10.0.1.0/24"]
-  target_tags   = ["worker"]
-}
-
-resource "google_compute_firewall" "allow_ssh" {
-   name = "allow_ssh"
-   network = google_compute_network.vpc_network.id 
-
-   allow {
-       protocol = "ssh"
-       ports = ["22"]
-   }
-}
-
-resource "google_compute_firewall" "allow_gateway_http" {
-   name = "allow_gateway_http"
-   network = google_compute_network.vpc_network.id 
-   allow {
-       protocol = "tcp"
-       ports = ["8000"]
-   }
-
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["gateway"]
-}
-
-resource "google_compute_instance" "inference" {
-   name = "inference"
-   machine_type =  var.machine_type
-   zone = var.zone
-   disk { image = "debian-cloud/debian-11" size = 30 }
-
-   network_interface {
-     subnetwork = google_compute_subnetwork.private.id
-     network_ip = "10.0.1.10"
-   }
-
-   tags = ["worker","ssh"]
-
-  metadata_startup_script = templatefile(
-    "${path.module}/../scripts/deploy-inference.sh",
-    {
-      caller_ip = "10.0.1.20"
-      repo_url  = var.repo_url
-    }
-  )
-}
-
-resource "google_compute_instance" "called" {
-   name = "caller"
-   machine_type = var.machine_type
-   zone = var.zone
-   disk { image = "debian-cloud/debian-11" size = 30 }
-
-  network_interface {
-    subnetwork = google_compute_subnetwork.private.id
-    network_ip = "10.0.1.20"
-
-    access_config {
-      # ephemeral public IP
-    }
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
   }
+}
 
-  tags = ["worker", "gateway", "ssh"]
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
+}
 
-  metadata_startup_script = templatefile(
+# NAT Gateway for private subnet outbound access
+resource "aws_eip" "nat" {
+  domain = "vpc"
+}
+
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public.id
+  depends_on    = [aws_internet_gateway.igw]
+}
+
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
+  }
+}
+
+resource "aws_route_table_association" "private" {
+  subnet_id      = aws_subnet.private.id
+  route_table_id = aws_route_table.private.id
+}
+
+# --- Security Groups (Best Practice: Standalone Rules) ---
+
+resource "aws_security_group" "common" {
+  name        = "common-rules"
+  description = "Internal traffic and common rules"
+  vpc_id      = aws_vpc.main.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "internal_all" {
+  security_group_id = aws_security_group.common.id
+  referenced_security_group_id = aws_security_group.common.id
+  ip_protocol       = "-1"
+}
+
+resource "aws_vpc_security_group_egress_rule" "allow_all_out" {
+  security_group_id = aws_security_group.common.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1"
+}
+
+resource "aws_security_group" "ssh" {
+  name   = "ssh-access"
+  vpc_id = aws_vpc.main.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "allow_ssh" {
+  security_group_id = aws_security_group.ssh.id
+  cidr_ipv4         = var.my_ip
+  from_port         = 22
+  ip_protocol       = "tcp"
+  to_port           = 22
+}
+
+resource "aws_security_group" "gateway" {
+  name   = "gateway-http"
+  vpc_id = aws_vpc.main.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "allow_http" {
+  security_group_id = aws_security_group.gateway.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 8000
+  ip_protocol       = "tcp"
+  to_port           = 8000
+}
+
+# --- Instances ---
+
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+  owners = ["099720109477"] # Canonical
+}
+
+resource "aws_instance" "caller" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = var.instance_type
+  subnet_id     = aws_subnet.public.id
+  
+  vpc_security_group_ids = [
+    aws_security_group.common.id,
+    aws_security_group.ssh.id,
+    aws_security_group.gateway.id
+  ]
+
+  user_data = templatefile(
     "${path.module}/../scripts/deploy-caller.sh",
     {
-      inference_ip = "10.0.1.10"
+      inference_ip = "10.0.2.10"
       repo_url     = var.repo_url
     }
   )
+
+  tags = { Name = "caller-gateway" }
+}
+
+resource "aws_instance" "inference" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = var.instance_type
+  subnet_id     = aws_subnet.private.id
+  private_ip    = "10.0.2.10"
+
+  vpc_security_group_ids = [
+    aws_security_group.common.id,
+    aws_security_group.ssh.id
+  ]
+
+  user_data = templatefile(
+    "${path.module}/../scripts/deploy-inference.sh",
+    {
+      caller_ip = aws_instance.caller.private_ip
+      repo_url  = var.repo_url
+    }
+  )
+
+  tags = { Name = "inference-worker" }
+}
+
+output "gateway_public_ip" {
+  value = aws_instance.caller.public_ip
 }
