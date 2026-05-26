@@ -1,6 +1,8 @@
 import { Logger, registerWorker } from "iii-sdk";
 
-const iii = registerWorker(process.env.III_URL ?? "ws://localhost:49134");
+const iii = registerWorker(process.env.III_URL ?? "ws://localhost:49134", {
+  invocationTimeoutMs: 90000,
+});
 const logger = new Logger();
 
 iii.registerFunction(
