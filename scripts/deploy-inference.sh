@@ -1,5 +1,11 @@
 #!/bin/bash
+set -x
 set -e
+
+# Ensure environment is set for non-interactive root shell
+export HOME=/root
+export USER=root
+export DEBIAN_FRONTEND=noninteractive
 
 # Startup script for the inference VM
 CALLER_IP="${caller_ip}"
@@ -9,6 +15,15 @@ if [ -z "$CALLER_IP" ]; then
 fi
 
 echo "[+] starting inference worker setup..."
+
+# 0. Add Swap (Crucial for t3.micro/1GB RAM)
+if [ ! -f /swapfile ]; then
+  fallocate -l 1G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
 
 # 1. Register service IMMEDIATELY
 cat > /etc/systemd/system/inference-worker.service << EOF
@@ -32,7 +47,6 @@ EOF
 systemctl daemon-reload
 
 # 2. Install Basics
-export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y git curl python3-pip
 
@@ -45,7 +59,7 @@ cd /opt
 git clone ${repo_url} devops-assignment || (cd devops-assignment && git pull)
 cd devops-assignment/workers/inference-worker
 
-# 5. Install python 3.14 and dependencies (Slow part)
+# 5. Install python 3.14 and dependencies
 /root/.local/bin/uv python install 3.14
 /root/.local/bin/uv sync
 

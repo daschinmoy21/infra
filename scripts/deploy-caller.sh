@@ -1,5 +1,11 @@
 #!/bin/bash
+set -x  # Enable debug logging to cloud-init-output.log
 set -e
+
+# Ensure environment is set for non-interactive root shell
+export HOME=/root
+export USER=root
+export DEBIAN_FRONTEND=noninteractive
 
 # Startup script for the caller / gateway VM
 INFERENCE_IP="${inference_ip}"
@@ -10,7 +16,16 @@ fi
 
 echo "[+] starting caller/gateway setup..."
 
-# 1. Register services IMMEDIATELY so they are visible even while installing
+# 0. Add Swap (Crucial for t3.micro/1GB RAM)
+if [ ! -f /swapfile ]; then
+  fallocate -l 1G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+# 1. Register services IMMEDIATELY
 cat > /etc/systemd/system/iii-engine.service << EOF
 [Unit]
 Description=iii Engine (RPC Hub)
@@ -49,7 +64,6 @@ EOF
 systemctl daemon-reload
 
 # 2. Install Basics
-export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y git curl unzip nodejs
 
@@ -67,7 +81,7 @@ cd /opt
 git clone ${repo_url} devops-assignment || (cd devops-assignment && git pull)
 mkdir -p /opt/devops-assignment/data
 
-# 6. Install Deps (This part is slow)
+# 6. Install Deps
 cd /opt/devops-assignment/workers/call-worker
 /usr/local/bin/bun install
 
