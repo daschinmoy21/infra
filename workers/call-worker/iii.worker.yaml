@@ -1,0 +1,9 @@
+
+name: caller-worker
+runtime:
+  language: typescript
+  package_manager: npm
+  entry: ./index.ts
+scripts:
+  install: 'bun install'
+  start: 'npm run dev'

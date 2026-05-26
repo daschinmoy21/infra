@@ -16,7 +16,7 @@
     };
 
     # Construct an emulated Ubuntu/Debian style file layout structure for your dev shell
-    fhsEnv = pkgs.buildFHSUserEnv {
+    fhsEnv = pkgs. buildFHSEnv {
       name = "dev-fhs-shell";
 
       # Core system libraries required by the iii engine binary and underlying workers
