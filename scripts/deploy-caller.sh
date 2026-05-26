@@ -1,31 +1,22 @@
 #!/bin/bash
-set -x  # Enable debug logging to cloud-init-output.log
+set -x
 set -e
 
-# Ensure environment is set for non-interactive root shell
 export HOME=/root
 export USER=root
 export DEBIAN_FRONTEND=noninteractive
 
-# Startup script for the caller / gateway VM
-INFERENCE_IP="${inference_ip}"
-if [ -z "$INFERENCE_IP" ]; then
-  echo "FATAL: inference_ip not set" >&2
-  exit 1
-fi
-
 echo "[+] starting caller/gateway setup..."
 
-# 0. Add Swap (Crucial for t3.micro/1GB RAM)
+# 0. Add Swap
 if [ ! -f /swapfile ]; then
   fallocate -l 1G /swapfile
   chmod 600 /swapfile
   mkswap /swapfile
   swapon /swapfile
-  echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
 
-# 1. Register services IMMEDIATELY
+# 1. Register services
 cat > /etc/systemd/system/iii-engine.service << EOF
 [Unit]
 Description=iii Engine (RPC Hub)
@@ -62,8 +53,8 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
+
 # 2. Install Basics
-export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y git curl unzip nodejs libcap-ng0 jq
 
@@ -72,23 +63,32 @@ curl -fsSL https://bun.sh/install | bash
 cp /root/.bun/bin/bun /usr/local/bin/bun
 chmod +x /usr/local/bin/bun
 
-# 4. Install the iii engine
-curl -fsSL https://install.iii.dev/iii/main/install.sh | sh || true
+# 4. Install iii (Try official installer first)
+echo "[+] Installing iii..."
+curl -fsSL https://install.iii.dev/iii/main/install.sh | sh || echo "Official installer failed, trying fallback..."
 
-# Force the binary to /usr/local/bin if it went elsewhere
-III_PATH=$(which iii || echo "/usr/bin/iii")
-if [ -f "$III_PATH" ]; then
-  cp "$III_PATH" /usr/local/bin/iii
-fi
+# Find where it went
+III_BIN=$(which iii || find /usr -name iii -type f | head -n 1 || echo "/usr/local/bin/iii")
 
-# As a fallback, download it directly if the installer failed
-if [ ! -f /usr/local/bin/iii ]; then
+# Fallback: Direct Download if missing or tiny (corrupted)
+if [ ! -f "$III_BIN" ] || [ $(stat -c%s "$III_BIN") -lt 1000 ]; then
+  echo "[!] iii binary missing or corrupted, downloading directly..."
   curl -Lo /usr/local/bin/iii https://github.com/Alchemyst-ai/hiring/releases/download/v0.11.0/iii-linux-amd64
+  chmod +x /usr/local/bin/iii
+  III_BIN="/usr/local/bin/iii"
 fi
 
-chmod +x /usr/local/bin/iii
-ls -l /usr/local/bin/iii
+# Ensure it's exactly where the service expects it
+if [ "$III_BIN" != "/usr/local/bin/iii" ]; then
+  cp "$III_BIN" /usr/local/bin/iii
+  chmod +x /usr/local/bin/iii
+fi
 
+# FINAL VALIDATION
+if ! /usr/local/bin/iii --version; then
+  echo "FATAL: iii binary is not working"
+  exit 1
+fi
 
 # 5. Clone and Setup
 cd /opt
