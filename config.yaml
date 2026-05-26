@@ -12,32 +12,37 @@ workers:
       logs_console_output: true
       sampling_ratio: 1.0
 
-- name: iii-queue
-  config:
-    adapter:
-      name: builtin
+  - name: iii-queue
+    config:
+      adapter:
+        name: builtin
 
-- name: iii-state
-  config:
-    adapter:
-      name: kv
-      config:
-        store_method: file_based
-        file_path: ./data/state_store.db
+  - name: iii-state
+    config:
+      adapter:
+        name: kv
+        config:
+          store_method: file_based
+          file_path: ./data/state_store.db
 
+  - name: iii-http
+    config:
+      port: 8000
+      host: 0.0.0.0
+      default_timeout: 30000
+      concurrency_request_limit: 1024
+      cors:
+        allowed_origins:
+          - "*"
+        allowed_methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
 
-- name: iii-http
-  config:
-    port: 8000
-    host: 0.0.0.0
-    default_timeout: 30000
-    concurrency_request_limit: 1024
-    cors:
-      allowed_origins:
-        - "*"
-      allowed_methods:
-        - GET
-        - POST
-        - PUT
-        - DELETE
-        - OPTIONS
+  - name: caller-worker
+    worker_path: ./workers/call-worker
+
+  - name: inference-worker
+    worker_path: ./workers/inference-worker

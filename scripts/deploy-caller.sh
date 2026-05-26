@@ -63,19 +63,16 @@ curl -fsSL https://bun.sh/install | bash
 cp /root/.bun/bin/bun /usr/local/bin/bun
 chmod +x /usr/local/bin/bun
 
-# 4. Install iii (Try official installer first)
+# 4. Install iii (using official installer)
 echo "[+] Installing iii..."
-curl -fsSL https://install.iii.dev/iii/main/install.sh | sh || echo "Official installer failed, trying fallback..."
+curl -fsSL https://install.iii.dev/iii/main/install.sh | sh
 
-# Find where it went
-III_BIN=$(which iii || find /usr -name iii -type f | head -n 1 || echo "/usr/local/bin/iii")
+# Find where it went (installer may put it in /root/.local/bin/iii)
+III_BIN=$(find /root /usr/local/bin /usr/bin -name iii -type f 2>/dev/null | head -n 1)
 
-# Fallback: Direct Download if missing or tiny (corrupted)
-if [ ! -f "$III_BIN" ] || [ $(stat -c%s "$III_BIN") -lt 1000 ]; then
-  echo "[!] iii binary missing or corrupted, downloading directly..."
-  curl -Lo /usr/local/bin/iii https://github.com/Alchemyst-ai/hiring/releases/download/v0.11.0/iii-linux-amd64
-  chmod +x /usr/local/bin/iii
-  III_BIN="/usr/local/bin/iii"
+if [ -z "$III_BIN" ] || [ ! -f "$III_BIN" ]; then
+  echo "FATAL: iii binary not found after install"
+  exit 1
 fi
 
 # Ensure it's exactly where the service expects it
