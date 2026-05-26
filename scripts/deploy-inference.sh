@@ -2,8 +2,6 @@
 set -e
 
 # Startup script for the inference VM
-# Runs after VM boots, sets up the Python inference worker
-
 CALLER_IP="${caller_ip}"
 if [ -z "$CALLER_IP" ]; then
   echo "FATAL: caller_ip not set" >&2
@@ -11,25 +9,8 @@ if [ -z "$CALLER_IP" ]; then
 fi
 
 echo "[+] starting inference worker setup..."
-echo "[+] caller (hub) is at $CALLER_IP"
 
-# Basics
-apt-get update -y && apt-get install -y git curl python3-pip
-
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-export PATH="/root/.local/bin:$PATH"
-
-# Clone the repo
-cd /opt
-git clone ${repo_url} devops-assignment || true
-cd devops-assignment/workers/inference-worker
-
-# Install python 3.14 and dependencies
-uv python install 3.14
-uv sync
-
-# systemd unit for the inference worker
+# 1. Register service IMMEDIATELY
 cat > /etc/systemd/system/inference-worker.service << EOF
 [Unit]
 Description=Inference Worker (Python)
@@ -49,6 +30,26 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
+
+# 2. Install Basics
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y git curl python3-pip
+
+# 3. Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="/root/.local/bin:$PATH"
+
+# 4. Clone and Setup
+cd /opt
+git clone ${repo_url} devops-assignment || (cd devops-assignment && git pull)
+cd devops-assignment/workers/inference-worker
+
+# 5. Install python 3.14 and dependencies (Slow part)
+/root/.local/bin/uv python install 3.14
+/root/.local/bin/uv sync
+
+# 6. Start service
 systemctl enable inference-worker
 systemctl start inference-worker
 

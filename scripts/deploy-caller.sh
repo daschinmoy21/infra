@@ -1,10 +1,7 @@
-
 #!/bin/bash
 set -e
 
 # Startup script for the caller / gateway VM
-# Runs after VM boots, sets up the TS caller worker + exposes it via HTTP
-
 INFERENCE_IP="${inference_ip}"
 if [ -z "$INFERENCE_IP" ]; then
   echo "FATAL: inference_ip not set" >&2
@@ -12,36 +9,8 @@ if [ -z "$INFERENCE_IP" ]; then
 fi
 
 echo "[+] starting caller/gateway setup..."
-echo "[+] inference worker is at $INFERENCE_IP"
 
-# Basics
-apt-get update -y && apt-get install -y git curl unzip
-
-# Install node (still needed for some things potentially, but we'll use bun)
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
-
-# Install Bun
-curl -fsSL https://bun.sh/install | bash
-# Copy to a place where systemd can always find it
-cp /root/.bun/bin/bun /usr/local/bin/bun
-chmod +x /usr/local/bin/bun
-
-# Install the iii engine (hub)
-curl -Lo /usr/local/bin/iii https://github.com/Alchemyst-ai/hiring/releases/download/v0.11.0/iii-linux-amd64
-chmod +x /usr/local/bin/iii
-
-# Clone the repo
-cd /opt
-git clone ${repo_url} devops-assignment || true
-cd devops-assignment
-mkdir -p data
-cd workers/call-worker
-
-# Install deps
-/usr/local/bin/bun install
-
-# systemd unit for the iii engine (hub)
+# 1. Register services IMMEDIATELY so they are visible even while installing
 cat > /etc/systemd/system/iii-engine.service << EOF
 [Unit]
 Description=iii Engine (RPC Hub)
@@ -59,7 +28,6 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-# systemd unit for the caller 
 cat > /etc/systemd/system/caller-worker.service << 'EOF'
 [Unit]
 Description=Caller Worker (TypeScript) — HTTP Gateway
@@ -78,12 +46,35 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-# RELOAD AND START
 systemctl daemon-reload
+
+# 2. Install Basics
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y git curl unzip nodejs
+
+# 3. Install Bun
+curl -fsSL https://bun.sh/install | bash
+cp /root/.bun/bin/bun /usr/local/bin/bun
+chmod +x /usr/local/bin/bun
+
+# 4. Install the iii engine binary
+curl -Lo /usr/local/bin/iii https://github.com/Alchemyst-ai/hiring/releases/download/v0.11.0/iii-linux-amd64
+chmod +x /usr/local/bin/iii
+
+# 5. Clone and Setup
+cd /opt
+git clone ${repo_url} devops-assignment || (cd devops-assignment && git pull)
+mkdir -p /opt/devops-assignment/data
+
+# 6. Install Deps (This part is slow)
+cd /opt/devops-assignment/workers/call-worker
+/usr/local/bin/bun install
+
+# 7. Start services
 systemctl enable iii-engine
 systemctl start iii-engine
 systemctl enable caller-worker
 systemctl start caller-worker
 
 echo "[+] caller/gateway setup done"
-echo "[+] gateway should be listening on port 8000"
