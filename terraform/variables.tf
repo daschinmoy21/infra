@@ -18,5 +18,5 @@ variable "my_ip" {
 variable "repo_url" {
   description = "URL of this repository to clone on the VMs"
   type        = string
-  default     = "https://github.com/Alchemyst-ai/hiring.git"
+  default     = "https://github.com/daschinmoy21/infra.git"
 }
