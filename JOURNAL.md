@@ -38,7 +38,7 @@ The system separates the public API Gateway from the underlying machine learning
 ### High-Level Request Pipeline
 
 1. **Ingress:** The client triggers a `POST` request to `http://<API_GATEWAY_IP>:8000/v1/chat/completions`.
-2. **Orchestration:** The gateway VM runs the Go-based `iii-engine` which acts as the central RPC hub, routing requests to the TS-based `caller-worker`.
+2. **Orchestration:** The gateway VM runs the Rust-based `iii-engine` which acts as the central RPC hub, routing requests to the TS-based `caller-worker`.
 3. **RPC Dispatch:** The `caller-worker` dispatches the request to the `inference::run_inference` function registered by the remote Python worker.
 4. **Execution:** The Python worker running inside the private subnet generates the tokens using Gemma-3 (270M parameters) on CPU and returns the response.
 
