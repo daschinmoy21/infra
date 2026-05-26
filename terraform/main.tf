@@ -84,10 +84,12 @@ resource "aws_security_group" "common" {
   vpc_id      = aws_vpc.main.id
 }
 
-resource "aws_vpc_security_group_ingress_rule" "internal_all" {
+resource "aws_vpc_security_group_ingress_rule" "internal_rpc" {
   security_group_id = aws_security_group.common.id
   referenced_security_group_id = aws_security_group.common.id
-  ip_protocol       = "-1"
+  from_port         = 49134
+  ip_protocol       = "tcp"
+  to_port           = 49134
 }
 
 resource "aws_vpc_security_group_egress_rule" "allow_all_out" {
@@ -103,7 +105,7 @@ resource "aws_security_group" "ssh" {
 
 resource "aws_vpc_security_group_ingress_rule" "allow_ssh" {
   security_group_id = aws_security_group.ssh.id
-  cidr_ipv4         = "0.0.0.0/0" # Temporary for debugging
+  cidr_ipv4         = var.my_ip
   from_port         = 22
   ip_protocol       = "tcp"
   to_port           = 22
