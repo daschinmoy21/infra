@@ -142,9 +142,27 @@ To fully verify that the `inference-worker` could properly load the model weight
 
 ### What to Harden Before Production
 1. **SSM for SSH Access:** Eliminate port `22` ingress rules entirely by accessing instances through AWS Systems Manager Session Manager.
-2. **Centralized Logging:** Pipe systemd logs from both VMs into an AWS CloudWatch Log Group or an external OpenTelemetry collector.
-3. **Secrets Management:** Retrieve Hugging Face tokens and API secrets dynamically from AWS Secrets Manager on boot instead of passing them in env scripts.
-4. **Auto-recovery:** Run workers inside Docker containers with restart policies to ensure instant recovery if the process fails.
+2. **Dynamic EC2 Instance Connect CIDR:** The current Terraform hardcodes `13.233.177.0/29` (ap-south-1 EIC prefix), which breaks in any other region. Fix by using `data.aws_ip_ranges` to resolve the EC2_INSTANCE_CONNECT prefix dynamically:
+
+   ```hcl
+   data "aws_ip_ranges" "ec2_instance_connect" {
+     regions  = [var.region]
+     services = ["ec2_instance_connect"]
+   }
+
+   resource "aws_vpc_security_group_ingress_rule" "allow_ec2_connect" {
+     security_group_id = aws_security_group.ssh.id
+     cidr_ipv4         = data.aws_ip_ranges.ec2_instance_connect.cidr_blocks[0]
+     from_port         = 22
+     ip_protocol       = "tcp"
+     to_port           = 22
+   }
+   ```
+
+   This also makes the `my_ip` SSH rule the only manual variable — everything else is self-resolving per region.
+3. **Centralized Logging:** Pipe systemd logs from both VMs into an AWS CloudWatch Log Group or an external OpenTelemetry collector.
+4. **Secrets Management:** Retrieve Hugging Face tokens and API secrets dynamically from AWS Secrets Manager on boot instead of passing them in env scripts.
+5. **Auto-recovery:** Run workers inside Docker containers with restart policies to ensure instant recovery if the process fails.
 
 ### Scaling to a 100x Larger Model (e.g. 27B+ Parameter Models)
 * **Compute:** Move the inference worker to GPU-optimized instances (such as AWS `g5` or `p4` instances).
