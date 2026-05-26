@@ -35,6 +35,7 @@ After=network.target
 Type=simple
 WorkingDirectory=/opt/devops-assignment/workers/inference-worker
 Environment="III_URL=ws://$CALLER_IP:49134"
+Environment="PYTHONUNBUFFERED=1"
 Environment="PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 ExecStart=/root/.local/bin/uv run main.py
 Restart=on-failure
