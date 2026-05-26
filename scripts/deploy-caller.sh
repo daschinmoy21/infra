@@ -62,19 +62,23 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-
 # 2. Install Basics
+export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y git curl unzip nodejs
+apt-get install -y git curl unzip nodejs libcap-ng0
 
 # 3. Install Bun
 curl -fsSL https://bun.sh/install | bash
 cp /root/.bun/bin/bun /usr/local/bin/bun
 chmod +x /usr/local/bin/bun
 
-# 4. Install the iii engine binary
-curl -Lo /usr/local/bin/iii https://github.com/Alchemyst-ai/hiring/releases/download/v0.11.0/iii-linux-amd64
-chmod +x /usr/local/bin/iii
+# 4. Install the iii engine (using official installer)
+curl -fsSL https://install.iii.dev/iii/main/install.sh | sh
+# Ensure it's in /usr/local/bin for the service
+if [ -f /usr/bin/iii ] && [ ! -f /usr/local/bin/iii ]; then
+  ln -s /usr/bin/iii /usr/local/bin/iii
+fi
+
 
 # 5. Clone and Setup
 cd /opt
