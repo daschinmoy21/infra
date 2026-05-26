@@ -18,7 +18,7 @@ echo "[+] starting inference worker setup..."
 
 # 0. Add Swap (Crucial for t3.micro/1GB RAM)
 if [ ! -f /swapfile ]; then
-  fallocate -l 1G /swapfile
+  fallocate -l 4G /swapfile
   chmod 600 /swapfile
   mkswap /swapfile
   swapon /swapfile
