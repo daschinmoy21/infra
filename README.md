@@ -171,7 +171,7 @@ curl -X POST http://<GATEWAY_IP>:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [
-      {"role": "user", "content": "Explain blue balls"."}
+      {"role": "user", "content": "Explain quantum entanglement in 10 words."}
     ]
   }'
 ```
