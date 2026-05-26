@@ -26,7 +26,7 @@ After=network.target
 Type=simple
 WorkingDirectory=/opt/devops-assignment
 Environment="III_ENGINE_HOST=0.0.0.0"
-ExecStart=/usr/local/bin/iii engine start --config config.yaml
+ExecStart=/usr/local/bin/iii
 Restart=on-failure
 RestartSec=5
 
