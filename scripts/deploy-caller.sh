@@ -65,7 +65,7 @@ systemctl daemon-reload
 # 2. Install Basics
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y git curl unzip nodejs libcap-ng0
+apt-get install -y git curl unzip nodejs libcap-ng0 jq
 
 # 3. Install Bun
 curl -fsSL https://bun.sh/install | bash
