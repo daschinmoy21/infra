@@ -103,7 +103,16 @@ resource "aws_security_group" "ssh" {
 
 resource "aws_vpc_security_group_ingress_rule" "allow_ssh" {
   security_group_id = aws_security_group.ssh.id
-  cidr_ipv4         = var.my_ip
+  cidr_ipv4         = "0.0.0.0/0" # Temporary for debugging
+  from_port         = 22
+  ip_protocol       = "tcp"
+  to_port           = 22
+}
+
+# Allow EC2 Instance Connect for ap-south-1
+resource "aws_vpc_security_group_ingress_rule" "allow_ec2_connect" {
+  security_group_id = aws_security_group.ssh.id
+  cidr_ipv4         = "13.233.177.0/29"
   from_port         = 22
   ip_protocol       = "tcp"
   to_port           = 22

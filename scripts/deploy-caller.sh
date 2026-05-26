@@ -23,7 +23,9 @@ apt-get install -y nodejs
 
 # Install Bun
 curl -fsSL https://bun.sh/install | bash
-cp /root/.bun/bin/bun /usr/local/bin/
+# Copy to a place where systemd can always find it
+cp /root/.bun/bin/bun /usr/local/bin/bun
+chmod +x /usr/local/bin/bun
 
 # Install the iii engine (hub)
 curl -Lo /usr/local/bin/iii https://github.com/Alchemyst-ai/hiring/releases/download/v0.11.0/iii-linux-amd64
@@ -37,7 +39,7 @@ mkdir -p data
 cd workers/call-worker
 
 # Install deps
-bun install
+/usr/local/bin/bun install
 
 # systemd unit for the iii engine (hub)
 cat > /etc/systemd/system/iii-engine.service << EOF
