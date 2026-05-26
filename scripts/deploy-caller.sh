@@ -72,12 +72,22 @@ curl -fsSL https://bun.sh/install | bash
 cp /root/.bun/bin/bun /usr/local/bin/bun
 chmod +x /usr/local/bin/bun
 
-# 4. Install the iii engine (using official installer)
-curl -fsSL https://install.iii.dev/iii/main/install.sh | sh
-# Ensure it's in /usr/local/bin for the service
-if [ -f /usr/bin/iii ] && [ ! -f /usr/local/bin/iii ]; then
-  ln -s /usr/bin/iii /usr/local/bin/iii
+# 4. Install the iii engine
+curl -fsSL https://install.iii.dev/iii/main/install.sh | sh || true
+
+# Force the binary to /usr/local/bin if it went elsewhere
+III_PATH=$(which iii || echo "/usr/bin/iii")
+if [ -f "$III_PATH" ]; then
+  cp "$III_PATH" /usr/local/bin/iii
 fi
+
+# As a fallback, download it directly if the installer failed
+if [ ! -f /usr/local/bin/iii ]; then
+  curl -Lo /usr/local/bin/iii https://github.com/Alchemyst-ai/hiring/releases/download/v0.11.0/iii-linux-amd64
+fi
+
+chmod +x /usr/local/bin/iii
+ls -l /usr/local/bin/iii
 
 
 # 5. Clone and Setup
