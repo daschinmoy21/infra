@@ -2,6 +2,7 @@ import { Logger, registerWorker } from "iii-sdk";
 
 const iii = registerWorker(process.env.III_URL ?? "ws://localhost:49134", {
   invocationTimeoutMs: 90000,
+  //without the invocationTimeoutMs args it defaults to a timeout of 30sec
 });
 const logger = new Logger();
 
@@ -47,4 +48,3 @@ iii.registerTrigger({
 });
 
 logger.info("Caller worker started - listening for calls");
-

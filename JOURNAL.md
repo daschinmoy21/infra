@@ -32,6 +32,9 @@ The system separates the public API Gateway from the underlying machine learning
          +-----------------------+                 +-----------------------+
 ```
 
+<!-- Placeholder: VPC Network Layout and Subnet Diagram -->
+<!-- ![VPC Subnet Layout](assets/vpc_subnet_layout.png) -->
+
 ### High-Level Request Pipeline
 
 1. **Ingress:** The client triggers a `POST` request to `http://<API_GATEWAY_IP>:8000/v1/chat/completions`.
@@ -66,6 +69,9 @@ Output:
 gateway_public_ip = "13.201.127.202"
 ```
 
+<!-- Placeholder: Terraform Apply Output Screenshot -->
+<!-- ![Terraform Apply Output](assets/terraform_apply_output.png) -->
+
 ---
 
 ## Step-by-Step Deployment Configuration
@@ -91,7 +97,16 @@ The workers are initialized using `cloud-init` scripts on VM boot and managed vi
 
 ---
 
+## Verification Strategy & Subnet Routing
+
+To fully verify that the `inference-worker` could properly load the model weights, register its functions with the Go RPC hub on the gateway, and successfully receive requests, we temporarily moved the inference worker to the public subnet and assigned it a public IP. Because GGUF CPU token generation on a `t3.micro` is extremely slow, direct SSH access to the inference VM was critical to monitor memory statistics, debug PyTorch scheduling, and view Python logs in real-time. Once the end-to-end request loop was confirmed functional, we reverted the network configuration back to the isolated private subnet layout.
+
+---
+
 ## The Debugging Chronicles: Challenges & Resolutions
+
+<!-- Placeholder: Systemd Journal Worker Connection Logs -->
+<!-- ![Worker Connection Logs](assets/worker_connection_logs.png) -->
 
 ### Challenge I: Decoupling Managed Workers from the Engine
 * **Observation:** The API returned `404` or `Function not found` errors because the Go engine kept attempting to spin up workers locally using the default `config.yaml`.
@@ -122,6 +137,9 @@ The workers are initialized using `cloud-init` scripts on VM boot and managed vi
 * **Observation:** Even after optimizing PyTorch, requests returned `TIMEOUT: invocation timed out after 30000ms`.
 * **Investigation:** The `iii-sdk` client library has a hardcoded default timeout of 30 seconds for any `trigger()` invocation.
 * **Resolution:** Overrode the initialization options in `workers/call-worker/index.ts` to set `invocationTimeoutMs: 90000`. Combined with reducing `max_new_tokens` to `128`, requests now execute and return well before the timeout limit.
+
+<!-- Placeholder: Curl API Test Output -->
+<!-- ![API Invocation](assets/api_invocation.png) -->
 
 ---
 
