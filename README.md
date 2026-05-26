@@ -44,6 +44,7 @@ graph TD
 
     User -- "JSON Request" --> API
     NAT -. "SNAT" .-> Public
+    Py -- "Cross-Subnet RPC" --> Hub
 ```
 
 ### Prerequisites
