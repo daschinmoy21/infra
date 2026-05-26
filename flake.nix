@@ -9,45 +9,51 @@
     self,
     nixpkgs,
   }: let
-    supportedSystems = ["x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin"];
-    forEachSupportedSystem = f:
-      nixpkgs.lib.genAttrs supportedSystems (system:
-        f {
-          pkgs = import nixpkgs {
-            inherit system;
-            config = {allowUnfree = true;};
-          };
-        });
-  in {
-    devShells = forEachSupportedSystem ({pkgs}: {
-      default = pkgs.mkShell {
-        packages = with pkgs; [
-          # GCP
-          google-cloud-sdk
+    system = "x86_64-linux";
+    pkgs = import nixpkgs {
+      inherit system;
+      config = {allowUnfree = true;};
+    };
 
-          # IaC
+    # Construct an emulated Ubuntu/Debian style file layout structure for your dev shell
+    fhsEnv = pkgs.buildFHSUserEnv {
+      name = "dev-fhs-shell";
+
+      # Core system libraries required by the iii engine binary and underlying workers
+      targetPkgs = pkgs:
+        with pkgs; [
+          # Upstream binary linking dependencies
+          libcap_ng
+          stdenv.cc.cc.lib
+          zlib
+          openssl
+          glibc
+
+          # Cloud & Automation Core
+          google-cloud-sdk
           terraform
           terraform-ls
 
-          # Python worker (SLM inference) — deps managed by uv
+          # Modern Runtimes
           uv
           python314
-
-          # TypeScript worker
           nodejs_24
           typescript
           typescript-language-server
           bun
 
-          # Utilities
+          # Fetching utilities needed for standard scripts
           curl
           jq
+          git
+          cacert
         ];
 
-        shellHook = ''
-          echo "GCP + Terraform + Python/TS dev environment loaded!"
-        '';
-      };
-    });
+      # Drop into a native standard shell environment upon activation
+      runScript = "$SHELL";
+    };
+  in {
+    # Directly binds the FHS environment container straight to your standard shell
+    devShells.${system}.default = fhsEnv.env;
   };
 }

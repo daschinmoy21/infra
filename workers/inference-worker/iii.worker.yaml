@@ -1,0 +1,11 @@
+r
+runtime:
+  language: python
+  package_manager: pip
+  entry: inference_worker.py
+scripts:
+  install: "uv pip install -r requirements.txt"
+  start: "watchfiles 'python inference_worker.py'"
+resources:
+  memory: 8192   # MiB — bumped from 2048 default
+  cpus: 4        #
