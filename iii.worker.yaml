@@ -1,0 +1,5 @@
+
+# Default standalone-worker manifest
+name: { { worker_name } }
+language: { { worker_language } }
+entry: { { worker_entry } }
