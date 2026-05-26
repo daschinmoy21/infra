@@ -157,6 +157,12 @@ resource "aws_instance" "caller" {
     aws_security_group.gateway.id
   ]
 
+  root_block_device {
+    volume_size           = 30
+    volume_type           = "gp3"
+    delete_on_termination = true
+  }
+
   user_data = templatefile(
     "${path.module}/../scripts/deploy-caller.sh",
     {
@@ -178,6 +184,12 @@ resource "aws_instance" "inference" {
     aws_security_group.common.id,
     aws_security_group.ssh.id
   ]
+
+  root_block_device {
+    volume_size           = 30
+    volume_type           = "gp3"
+    delete_on_termination = true
+  }
 
   user_data = templatefile(
     "${path.module}/../scripts/deploy-inference.sh",

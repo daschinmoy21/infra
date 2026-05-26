@@ -84,6 +84,70 @@ EC2, and came back with a valid result in seconds.
 
 ---
 
+## 🐛 The Debugging Gauntlet
+
+After deploying, the engine refused to start. Here's everything that broke and
+what I actually did to fix it.
+
+### iii binary went where??
+
+The official installer (`install.iii.dev`) drops the binary in
+`/root/.local/bin/iii`. My script was checking `/usr/bin/iii` — a path that
+didn't exist. I also had a fallback that downloaded from a GitHub release URL,
+but that link returned a 404 (turns out the repo was private or the tag got
+deleted). So `find` was searching `/usr`, completely missing `/root/.local`.
+
+The fix: I told `find` to also look in `/root`. Simple, but took way too long
+to realize the installer just puts things in a non-standard path when running
+as root.
+
+### jq wasn't there yet
+
+The installer script uses `jq` internally to parse its own metadata. My
+`deploy-caller.sh` had `apt-get install jq`, but the order was fine — until I
+realized I was deploying from an old commit that didn't include `jq` at all.
+The cloud-init log was literally:
+
+```
+error: jq is required (apt-get install -y jq)
+curl: (23) Failure writing output to destination
+```
+
+Added it, pushed, moved on.
+
+### YAML indentation from hell
+
+My `config.yaml` had the `iii-queue`, `iii-state`, and `iii-http` blocks at
+column 1 — same level as `workers:`. YAML parsers just silently treat those
+as separate top-level keys instead of children. The engine probably parsed an
+empty config and sat there doing nothing. Realigned everything to 2-space
+indentation under `workers:`.
+
+### iii v0.13.0 killed the engine subcommand
+
+This one took me a while. The service kept crashing with `status=2`. Journalctl
+finally showed:
+
+```
+error: unrecognized subcommand 'engine'
+```
+
+Turns out the CLI changed between versions. I was running
+`iii engine start --config config.yaml`, but v0.13.0 just takes `iii` (it
+auto-discovers `config.yaml` from the working directory). The reference repo
+had this right all along — `ExecStart=/home/ec2-user/.local/bin/iii` with no
+arguments. Changed my systemd unit and it came up instantly.
+
+### Service was alive, nothing worked
+
+For a brief moment I had the engine running but `curl` returned 404. Workers
+were up but they were connecting to the wrong engine instance. If you point
+`III_URL` at a dead endpoint, the SDK silently connects to nothing and your
+routes never register. The fix was making sure `caller-worker` talks to
+`ws://localhost:49134` and `inference-worker` talks to the caller's private IP.
+
+---
+
 ## 💡 Lessons Learned
 - **Least Privilege:** Using AWS Security Groups to restrict traffic to specific
   ports and sourcing from the VPC CIDR made the setup feel robust.
